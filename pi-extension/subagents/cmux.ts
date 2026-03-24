@@ -231,7 +231,7 @@ export function createSurfaceSplit(
   const directionArg = direction === "left" || direction === "right" ? "right" : "down";
   const tokenPath = join(
     tmpdir(),
-    `pi-subagent-zellij-pane-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
+    `pi-subagent-zellij-pane-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`,
   );
   const args = ["new-pane", "--direction", directionArg, "--name", name, "--cwd", process.cwd()];
 
@@ -288,7 +288,9 @@ export function renameCurrentTab(title: string): void {
   if (backend === "cmux") {
     const surfaceId = process.env.CMUX_SURFACE_ID;
     if (!surfaceId) throw new Error("CMUX_SURFACE_ID not set");
-    execSync(`cmux rename-tab --surface ${shellEscape(surfaceId)} ${shellEscape(title)}`, { encoding: "utf8" });
+    execSync(`cmux rename-tab --surface ${shellEscape(surfaceId)} ${shellEscape(title)}`, {
+      encoding: "utf8",
+    });
     return;
   }
 
@@ -312,7 +314,9 @@ export function renameWorkspace(title: string): void {
   const backend = requireMuxBackend();
 
   if (backend === "cmux") {
-    execSync(`cmux workspace-action --action rename --title ${shellEscape(title)}`, { encoding: "utf8" });
+    execSync(`cmux workspace-action --action rename --title ${shellEscape(title)}`, {
+      encoding: "utf8",
+    });
     return;
   }
 
@@ -323,9 +327,13 @@ export function renameWorkspace(title: string): void {
 
     const paneId = process.env.TMUX_PANE;
     if (!paneId) throw new Error("TMUX_PANE not set");
-    const sessionId = execFileSync("tmux", ["display-message", "-p", "-t", paneId, "#{session_id}"], {
-      encoding: "utf8",
-    }).trim();
+    const sessionId = execFileSync(
+      "tmux",
+      ["display-message", "-p", "-t", paneId, "#{session_id}"],
+      {
+        encoding: "utf8",
+      },
+    ).trim();
     execFileSync("tmux", ["rename-session", "-t", sessionId, title], { encoding: "utf8" });
     return;
   }
@@ -363,28 +371,33 @@ export function readScreen(surface: string, lines = 50): string {
   const backend = requireMuxBackend();
 
   if (backend === "cmux") {
-    return execSync(
-      `cmux read-screen --surface ${shellEscape(surface)} --lines ${lines}`,
-      { encoding: "utf8" }
-    );
-  }
-
-  if (backend === "tmux") {
-    return execFileSync("tmux", ["capture-pane", "-p", "-t", surface, "-S", `-${Math.max(1, lines)}`], {
+    return execSync(`cmux read-screen --surface ${shellEscape(surface)} --lines ${lines}`, {
       encoding: "utf8",
     });
   }
 
+  if (backend === "tmux") {
+    return execFileSync(
+      "tmux",
+      ["capture-pane", "-p", "-t", surface, "-S", `-${Math.max(1, lines)}`],
+      {
+        encoding: "utf8",
+      },
+    );
+  }
+
   const tmpPath = join(
     tmpdir(),
-    `pi-subagent-zellij-screen-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
+    `pi-subagent-zellij-screen-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`,
   );
   try {
     zellijActionSync(["dump-screen", tmpPath], surface);
     const raw = readFileSync(tmpPath, "utf8");
     return tailLines(raw, lines);
   } finally {
-    try { rmSync(tmpPath, { force: true }); } catch {}
+    try {
+      rmSync(tmpPath, { force: true });
+    } catch {}
   }
 }
 
@@ -398,7 +411,7 @@ export async function readScreenAsync(surface: string, lines = 50): Promise<stri
     const { stdout } = await execFileAsync(
       "cmux",
       ["read-screen", "--surface", surface, "--lines", String(lines)],
-      { encoding: "utf8" }
+      { encoding: "utf8" },
     );
     return stdout;
   }
@@ -407,21 +420,23 @@ export async function readScreenAsync(surface: string, lines = 50): Promise<stri
     const { stdout } = await execFileAsync(
       "tmux",
       ["capture-pane", "-p", "-t", surface, "-S", `-${Math.max(1, lines)}`],
-      { encoding: "utf8" }
+      { encoding: "utf8" },
     );
     return stdout;
   }
 
   const tmpPath = join(
     tmpdir(),
-    `pi-subagent-zellij-screen-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
+    `pi-subagent-zellij-screen-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`,
   );
   try {
     await zellijActionAsync(["dump-screen", tmpPath], surface);
     const raw = readFileSync(tmpPath, "utf8");
     return tailLines(raw, lines);
   } finally {
-    try { rmSync(tmpPath, { force: true }); } catch {}
+    try {
+      rmSync(tmpPath, { force: true });
+    } catch {}
   }
 }
 
@@ -454,7 +469,7 @@ export function closeSurface(surface: string): void {
 export async function pollForExit(
   surface: string,
   signal: AbortSignal,
-  options: { interval: number; onTick?: (elapsed: number) => void }
+  options: { interval: number; onTick?: (elapsed: number) => void },
 ): Promise<number> {
   const start = Date.now();
 

@@ -2,13 +2,7 @@
 
 Async subagents for [pi](https://github.com/badlogic/pi-mono) — spawn, orchestrate, and manage sub-agent sessions in multiplexer panes. **Fully non-blocking** — the main agent keeps working while subagents run in the background.
 
-
-
-
 https://github.com/user-attachments/assets/30adb156-cfb4-4c47-84ca-dd4aa80cba9f
-
-
-
 
 ## How It Works
 
@@ -24,8 +18,8 @@ Call `subagent()` and it **returns immediately**. The sub-agent runs in its own 
 For parallel execution, just call `subagent` multiple times — they all run concurrently:
 
 ```typescript
-subagent({ name: "Scout: Auth", agent: "scout", task: "Analyze auth module" })
-subagent({ name: "Scout: DB", agent: "scout", task: "Map database schema" })
+subagent({ name: "Scout: Auth", agent: "scout", task: "Analyze auth module" });
+subagent({ name: "Scout: DB", agent: "scout", task: "Map database schema" });
 // Both return immediately, results steer back independently
 ```
 
@@ -36,6 +30,7 @@ pi install git:github.com/HazAT/pi-interactive-subagents
 ```
 
 Supported multiplexers:
+
 - [cmux](https://github.com/manaflow-ai/cmux)
 - [tmux](https://github.com/tmux/tmux)
 - [zellij](https://zellij.dev)
@@ -58,35 +53,35 @@ Optional: set `PI_SUBAGENT_MUX=cmux|tmux|zellij` to force a specific backend.
 
 **Subagents** — 4 tools + 3 commands:
 
-| Tool | Description |
-|------|-------------|
-| `subagent` | Spawn a sub-agent in a dedicated multiplexer pane (async — returns immediately) |
-| `subagents_list` | List available agent definitions |
-| `set_tab_title` | Update tab/window title to show progress |
-| `subagent_resume` | Resume a previous sub-agent session (async) |
+| Tool              | Description                                                                     |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `subagent`        | Spawn a sub-agent in a dedicated multiplexer pane (async — returns immediately) |
+| `subagents_list`  | List available agent definitions                                                |
+| `set_tab_title`   | Update tab/window title to show progress                                        |
+| `subagent_resume` | Resume a previous sub-agent session (async)                                     |
 
-| Command | Description |
-|---------|-------------|
-| `/plan` | Start a full planning workflow |
-| `/iterate` | Fork into a subagent for quick fixes |
-| `/subagent <agent> <task>` | Spawn a named agent directly |
+| Command                    | Description                          |
+| -------------------------- | ------------------------------------ |
+| `/plan`                    | Start a full planning workflow       |
+| `/iterate`                 | Fork into a subagent for quick fixes |
+| `/subagent <agent> <task>` | Spawn a named agent directly         |
 
 **Session Artifacts** — 2 tools for session-scoped file storage:
 
-| Tool | Description |
-|------|-------------|
+| Tool             | Description                                               |
+| ---------------- | --------------------------------------------------------- |
 | `write_artifact` | Write plans, context, notes to a session-scoped directory |
-| `read_artifact` | Read artifacts from current or previous sessions |
+| `read_artifact`  | Read artifacts from current or previous sessions          |
 
 ### Bundled Agents
 
-| Agent | Model | Role |
-|-------|-------|------|
-| **planner** | Opus (medium thinking) | Brainstorming — clarifies requirements, explores approaches, writes plans, creates todos |
-| **scout** | Haiku | Fast codebase reconnaissance — maps files, patterns, conventions |
-| **worker** | Sonnet | Implements tasks from todos — writes code, runs tests, makes polished commits |
-| **reviewer** | Opus (medium thinking) | Reviews code for bugs, security issues, correctness |
-| **visual-tester** | Sonnet | Visual QA via Chrome CDP — screenshots, responsive testing, interaction testing |
+| Agent             | Model                  | Role                                                                                     |
+| ----------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
+| **planner**       | Opus (medium thinking) | Brainstorming — clarifies requirements, explores approaches, writes plans, creates todos |
+| **scout**         | Haiku                  | Fast codebase reconnaissance — maps files, patterns, conventions                         |
+| **worker**        | Sonnet                 | Implements tasks from todos — writes code, runs tests, makes polished commits            |
+| **reviewer**      | Opus (medium thinking) | Reviews code for bugs, security issues, correctness                                      |
+| **visual-tester** | Sonnet                 | Visual QA via Chrome CDP — screenshots, responsive testing, interaction testing          |
 
 Agent discovery follows priority: **project-local** (`.pi/agents/`) > **global** (`~/.pi/agent/agents/`) > **package-bundled**. Override any bundled agent by placing your own version in the higher-priority location.
 
@@ -120,31 +115,36 @@ Completion messages render with a colored background and are expandable with `Ct
 
 ```typescript
 // Named agent with defaults from agent definition
-subagent({ name: "Scout", agent: "scout", task: "Analyze the codebase..." })
+subagent({ name: "Scout", agent: "scout", task: "Analyze the codebase..." });
 
 // Fork — sub-agent gets full conversation context
-subagent({ name: "Iterate", fork: true, task: "Fix the bug where..." })
+subagent({ name: "Iterate", fork: true, task: "Fix the bug where..." });
 
 // Override agent defaults
-subagent({ name: "Worker", agent: "worker", model: "anthropic/claude-haiku-4-5", task: "Quick fix..." })
+subagent({
+  name: "Worker",
+  agent: "worker",
+  model: "anthropic/claude-haiku-4-5",
+  task: "Quick fix...",
+});
 
 // Custom working directory
-subagent({ name: "Designer", agent: "game-designer", cwd: "agents/game-designer", task: "..." })
+subagent({ name: "Designer", agent: "game-designer", cwd: "agents/game-designer", task: "..." });
 ```
 
 ### Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `name` | string | required | Display name (shown in widget and pane title) |
-| `task` | string | required | Task prompt for the sub-agent |
-| `agent` | string | — | Load defaults from agent definition |
-| `fork` | boolean | `false` | Copy current session for full context |
-| `model` | string | — | Override agent's default model |
-| `systemPrompt` | string | — | Append to system prompt |
-| `skills` | string | — | Comma-separated skill names |
-| `tools` | string | — | Comma-separated tool names |
-| `cwd` | string | — | Working directory for the sub-agent (see [Role Folders](#role-folders)) |
+| Parameter      | Type    | Default  | Description                                                             |
+| -------------- | ------- | -------- | ----------------------------------------------------------------------- |
+| `name`         | string  | required | Display name (shown in widget and pane title)                           |
+| `task`         | string  | required | Task prompt for the sub-agent                                           |
+| `agent`        | string  | —        | Load defaults from agent definition                                     |
+| `fork`         | boolean | `false`  | Copy current session for full context                                   |
+| `model`        | string  | —        | Override agent's default model                                          |
+| `systemPrompt` | string  | —        | Append to system prompt                                                 |
+| `skills`       | string  | —        | Comma-separated skill names                                             |
+| `tools`        | string  | —        | Comma-separated tool names                                              |
+| `cwd`          | string  | —        | Working directory for the sub-agent (see [Role Folders](#role-folders)) |
 
 ---
 
@@ -206,18 +206,18 @@ You are a specialized agent that does X...
 
 ### Frontmatter Reference
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Agent name (used in `agent: "my-agent"`) |
-| `description` | string | Shown in `subagents_list` output |
-| `model` | string | Default model (e.g. `anthropic/claude-sonnet-4-6`) |
-| `thinking` | string | Thinking level: `minimal`, `medium`, `high` |
-| `tools` | string | Comma-separated **native pi tools only**: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls` |
-| `skills` | string | Comma-separated skill names to auto-load |
-| `spawning` | boolean | Set `false` to deny all subagent-spawning tools |
-| `deny-tools` | string | Comma-separated extension tool names to deny |
-| `auto-exit` | boolean | Auto-shutdown when the agent finishes its turn — no `subagent_done` call needed. If the user sends any input, auto-exit is permanently disabled and the user takes over the session. Recommended for autonomous agents (scout, worker); not for interactive ones (planner). |
-| `cwd` | string | Default working directory (absolute or relative to project root) |
+| Field         | Type    | Description                                                                                                                                                                                                                                                                 |
+| ------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | string  | Agent name (used in `agent: "my-agent"`)                                                                                                                                                                                                                                    |
+| `description` | string  | Shown in `subagents_list` output                                                                                                                                                                                                                                            |
+| `model`       | string  | Default model (e.g. `anthropic/claude-sonnet-4-6`)                                                                                                                                                                                                                          |
+| `thinking`    | string  | Thinking level: `minimal`, `medium`, `high`                                                                                                                                                                                                                                 |
+| `tools`       | string  | Comma-separated **native pi tools only**: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`                                                                                                                                                                             |
+| `skills`      | string  | Comma-separated skill names to auto-load                                                                                                                                                                                                                                    |
+| `spawning`    | boolean | Set `false` to deny all subagent-spawning tools                                                                                                                                                                                                                             |
+| `deny-tools`  | string  | Comma-separated extension tool names to deny                                                                                                                                                                                                                                |
+| `auto-exit`   | boolean | Auto-shutdown when the agent finishes its turn — no `subagent_done` call needed. If the user sends any input, auto-exit is permanently disabled and the user takes over the session. Recommended for autonomous agents (scout, worker); not for interactive ones (planner). |
+| `cwd`         | string  | Default working directory (absolute or relative to project root)                                                                                                                                                                                                            |
 
 ---
 
@@ -226,11 +226,13 @@ You are a specialized agent that does X...
 When set to `true`, the agent session shuts down automatically as soon as the agent finishes its turn — no explicit `subagent_done` call is needed.
 
 **Behavior:**
+
 - The session closes after the agent's final message (on the `agent_end` event)
 - If the user sends **any input** before the agent finishes, auto-exit is permanently disabled for that session — the user takes over interactively
 - The modeHint injected into the agent's task is adjusted accordingly: autonomous agents see "Complete your task autonomously." rather than instructions to call `subagent_done`
 
 **When to use:**
+
 - ✅ Autonomous agents (scout, worker, reviewer) that run to completion
 - ❌ Interactive agents (planner, iterate) where the user drives the session
 
@@ -271,13 +273,13 @@ deny-tools: subagent, set_tab_title
 
 ### Recommended Configuration
 
-| Agent | `spawning` | Rationale |
-|-------|-----------|-----------|
-| planner | *(default)* | Legitimately spawns scouts for investigation |
-| worker | `false` | Should implement tasks, not delegate |
-| researcher | `false` | Should research, not spawn |
-| reviewer | `false` | Should review, not spawn |
-| scout | `false` | Should gather context, not spawn |
+| Agent      | `spawning`  | Rationale                                    |
+| ---------- | ----------- | -------------------------------------------- |
+| planner    | _(default)_ | Legitimately spawns scouts for investigation |
+| worker     | `false`     | Should implement tasks, not delegate         |
+| researcher | `false`     | Should research, not spawn                   |
+| reviewer   | `false`     | Should review, not spawn                     |
+| scout      | `false`     | Should gather context, not spawn             |
 
 ---
 
@@ -298,8 +300,8 @@ project/
 ```
 
 ```typescript
-subagent({ name: "Game Designer", cwd: "agents/game-designer", task: "Design the combat system" })
-subagent({ name: "SRE", cwd: "agents/sre", task: "Review deployment pipeline" })
+subagent({ name: "Game Designer", cwd: "agents/game-designer", task: "Design the combat system" });
+subagent({ name: "SRE", cwd: "agents/sre", task: "Review deployment pipeline" });
 ```
 
 Set a default `cwd` in agent frontmatter:

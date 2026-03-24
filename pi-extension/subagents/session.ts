@@ -1,6 +1,6 @@
 import { readFileSync, appendFileSync, copyFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 
 export interface SessionEntry {
   type: string;
@@ -61,7 +61,10 @@ export function findLastAssistantMessage(entries: SessionEntry[]): string | null
     if (msg.message.role !== "assistant") continue;
 
     const texts = msg.message.content
-      .filter((block) => block.type === "text" && typeof block.text === "string" && block.text.trim() !== "")
+      .filter(
+        (block) =>
+          block.type === "text" && typeof block.text === "string" && block.text.trim() !== "",
+      )
       .map((block) => block.text as string);
 
     if (texts.length > 0 && texts.join("").trim()) return texts.join("\n");
@@ -77,7 +80,7 @@ export function appendBranchSummary(
   sessionFile: string,
   branchPointId: string,
   fromId: string | null,
-  summary: string
+  summary: string,
 ): string {
   const id = randomBytes(4).toString("hex");
   const entry = {
@@ -110,7 +113,7 @@ export function copySessionFile(sessionFile: string, destDir: string): string {
 export function mergeNewEntries(
   sourceFile: string,
   targetFile: string,
-  afterLine: number
+  afterLine: number,
 ): SessionEntry[] {
   const entries = getNewEntries(sourceFile, afterLine);
   for (const entry of entries) {

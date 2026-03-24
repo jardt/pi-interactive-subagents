@@ -33,7 +33,8 @@ export default function (pi: ExtensionAPI) {
       const name = args.name ?? "...";
       const content = args.content ?? "";
 
-      let text = theme.fg("toolTitle", theme.bold("write_artifact")) + " " + theme.fg("accent", name);
+      let text =
+        theme.fg("toolTitle", theme.bold("write_artifact")) + " " + theme.fg("accent", name);
 
       if (content) {
         const lang = getLanguageFromPath(name);
@@ -43,7 +44,11 @@ export default function (pi: ExtensionAPI) {
         const displayLines = lines.slice(0, PREVIEW_LINES);
         const remaining = totalLines - PREVIEW_LINES;
 
-        text += "\n\n" + displayLines.map((line: string) => (lang ? line : theme.fg("toolOutput", line))).join("\n");
+        text +=
+          "\n\n" +
+          displayLines
+            .map((line: string) => (lang ? line : theme.fg("toolOutput", line)))
+            .join("\n");
 
         if (remaining > 0) {
           text += theme.fg("muted", `\n... (${remaining} more lines, ${totalLines} total)`);
@@ -55,7 +60,10 @@ export default function (pi: ExtensionAPI) {
 
     renderResult(result, _opts, theme) {
       const details = result.details as { path?: string; name?: string } | undefined;
-      const text = theme.fg("success", "✓") + " " + theme.fg("accent", details?.path ?? details?.name ?? "artifact");
+      const text =
+        theme.fg("success", "✓") +
+        " " +
+        theme.fg("accent", details?.path ?? details?.name ?? "artifact");
       return new Text(text, 0, 0);
     },
 
@@ -84,7 +92,11 @@ export default function (pi: ExtensionAPI) {
    * Find an artifact by name across all session artifact directories for the current project.
    * Searches current session first, then other sessions (most recently modified first).
    */
-  function findArtifact(projectArtifactsDir: string, currentSessionId: string, name: string): string | null {
+  function findArtifact(
+    projectArtifactsDir: string,
+    currentSessionId: string,
+    name: string,
+  ): string | null {
     // 1. Check current session first
     const currentPath = resolve(join(projectArtifactsDir, currentSessionId), name);
     if (existsSync(currentPath)) return currentPath;
@@ -131,16 +143,24 @@ export default function (pi: ExtensionAPI) {
       "When a sub-agent reports it wrote an artifact, use read_artifact to access it — don't use the read tool or bash.",
     ],
     parameters: Type.Object({
-      name: Type.String({ description: "Artifact name, e.g. 'plan.md' or 'plans/2026-03-16-fullstack-counter.md'" }),
+      name: Type.String({
+        description: "Artifact name, e.g. 'plan.md' or 'plans/2026-03-16-fullstack-counter.md'",
+      }),
     }),
 
     renderCall(args, theme) {
       const name = args.name ?? "...";
-      return new Text(theme.fg("toolTitle", theme.bold("read_artifact")) + " " + theme.fg("accent", name), 0, 0);
+      return new Text(
+        theme.fg("toolTitle", theme.bold("read_artifact")) + " " + theme.fg("accent", name),
+        0,
+        0,
+      );
     },
 
     renderResult(result, { expanded }, theme) {
-      const details = result.details as { path?: string; name?: string; content?: string; sessionId?: string } | undefined;
+      const details = result.details as
+        | { path?: string; name?: string; content?: string; sessionId?: string }
+        | undefined;
       const name = details?.name ?? "artifact";
       const content = details?.content ?? "";
 
@@ -154,7 +174,11 @@ export default function (pi: ExtensionAPI) {
         const displayLines = lines.slice(0, maxLines);
         const remaining = totalLines - maxLines;
 
-        text += "\n\n" + displayLines.map((line: string) => (lang ? line : theme.fg("toolOutput", line))).join("\n");
+        text +=
+          "\n\n" +
+          displayLines
+            .map((line: string) => (lang ? line : theme.fg("toolOutput", line)))
+            .join("\n");
 
         if (remaining > 0) {
           text +=
@@ -181,7 +205,10 @@ export default function (pi: ExtensionAPI) {
             try {
               for (const entry of readdirSync(dir, { withFileTypes: true })) {
                 if (entry.isDirectory()) {
-                  collectArtifacts(join(dir, entry.name), prefix ? `${prefix}/${entry.name}` : entry.name);
+                  collectArtifacts(
+                    join(dir, entry.name),
+                    prefix ? `${prefix}/${entry.name}` : entry.name,
+                  );
                 } else {
                   available.push(prefix ? `${prefix}/${entry.name}` : entry.name);
                 }

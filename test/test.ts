@@ -225,8 +225,14 @@ describe("session.ts", () => {
       // Source starts with same base (2 entries), then has 1 new entry
       const sourceFile = join(dir, "merge-source.jsonl");
       const targetFile = join(dir, "merge-target.jsonl");
-      writeFileSync(sourceFile, [SESSION_HEADER, USER_MSG, ASSISTANT_MSG].map(e => JSON.stringify(e)).join("\n") + "\n");
-      writeFileSync(targetFile, [SESSION_HEADER, USER_MSG].map(e => JSON.stringify(e)).join("\n") + "\n");
+      writeFileSync(
+        sourceFile,
+        [SESSION_HEADER, USER_MSG, ASSISTANT_MSG].map((e) => JSON.stringify(e)).join("\n") + "\n",
+      );
+      writeFileSync(
+        targetFile,
+        [SESSION_HEADER, USER_MSG].map((e) => JSON.stringify(e)).join("\n") + "\n",
+      );
 
       // Merge entries after line 2 (the shared base)
       const merged = mergeNewEntries(sourceFile, targetFile, 2);

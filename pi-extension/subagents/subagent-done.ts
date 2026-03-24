@@ -16,16 +16,14 @@ export default function (pi: ExtensionAPI) {
   const subagentName = process.env.PI_SUBAGENT_NAME ?? "";
   const subagentAgent = process.env.PI_SUBAGENT_AGENT ?? "";
 
-  function renderWidget(ctx: { ui: { setWidget: Function } }, theme: any) {
+  function renderWidget(ctx: { ui: { setWidget: Function } }, _theme: any) {
     ctx.ui.setWidget(
       "subagent-tools",
       (_tui: any, theme: any) => {
         const box = new Box(1, 0, (text: string) => theme.bg("toolSuccessBg", text));
 
         const label = subagentAgent || subagentName;
-        const agentTag = label
-          ? theme.bold(theme.fg("accent", `[${label}]`))
-          : "";
+        const agentTag = label ? theme.bold(theme.fg("accent", `[${label}]`)) : "";
 
         if (expanded) {
           // Expanded: full tool list + denied
@@ -53,9 +51,10 @@ export default function (pi: ExtensionAPI) {
         } else {
           // Collapsed: one-line summary
           const countInfo = theme.fg("dim", ` — ${toolNames.length} tools`);
-          const deniedInfo = denied.length > 0
-            ? theme.fg("dim", " · ") + theme.fg("error", `${denied.length} denied`)
-            : "";
+          const deniedInfo =
+            denied.length > 0
+              ? theme.fg("dim", " · ") + theme.fg("error", `${denied.length} denied`)
+              : "";
           const hint = theme.fg("muted", "  (Ctrl+J to expand)");
 
           const content = new Text(`${agentTag}${countInfo}${deniedInfo}${hint}`, 0, 0);

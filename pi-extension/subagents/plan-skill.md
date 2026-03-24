@@ -19,16 +19,17 @@ A planning workflow that offloads brainstorming and plan creation to a dedicated
 
 Use `set_tab_title` to keep the user informed of progress in the multiplexer UI. Update the title at every phase transition.
 
-| Phase | Title example |
-|-------|--------------|
-| Investigation | `🔍 Investigating: <short task>` |
-| Planning | `💬 Planning: <short task>` |
-| Review plan | `📋 Review: <short task>` |
-| Executing | `🔨 Executing: 1/3 — <short task>` (update counter per worker) |
-| Reviewing | `🔎 Reviewing: <short task>` |
-| Done | `✅ Done: <short task>` |
+| Phase         | Title example                                                  |
+| ------------- | -------------------------------------------------------------- |
+| Investigation | `🔍 Investigating: <short task>`                               |
+| Planning      | `💬 Planning: <short task>`                                    |
+| Review plan   | `📋 Review: <short task>`                                      |
+| Executing     | `🔨 Executing: 1/3 — <short task>` (update counter per worker) |
+| Reviewing     | `🔎 Reviewing: <short task>`                                   |
+| Done          | `✅ Done: <short task>`                                        |
 
 Name subagents with context too:
+
 - Scout: `"🔍 Scout"` (default is fine)
 - Workers: `"🔨 Worker 1/3"`, `"🔨 Worker 2/3"`, etc.
 - Reviewer: `"🔎 Reviewer"`
@@ -71,8 +72,8 @@ subagent({
   name: "Scout",
   agent: "scout",
   interactive: false,
-  task: "Analyze the codebase. Map file structure, key modules, patterns, and conventions. Summarize findings concisely for a planning session."
-})
+  task: "Analyze the codebase. Map file structure, key modules, patterns, and conventions. Summarize findings concisely for a planning session.",
+});
 ```
 
 Read the scout's summary from the subagent result before proceeding.
@@ -91,8 +92,8 @@ subagent({
   task: `Plan: [what the user wants to build]
 
 Context from investigation:
-[paste relevant findings from Phase 1 here]`
-})
+[paste relevant findings from Phase 1 here]`,
+});
 ```
 
 **The user works with the planner in the subagent.** The main session waits. When the user is done, they press Ctrl+D and the subagent.s summary is returned to the main session.
@@ -104,10 +105,11 @@ Context from investigation:
 Once the subagent closes, read the plan and todos:
 
 ```typescript
-todo({ action: "list" })
+todo({ action: "list" });
 ```
 
 Review with the user:
+
 > "Here's what the planner produced: [brief summary]. Ready to execute, or anything to adjust?"
 
 ---
@@ -122,24 +124,24 @@ subagent({
   name: "Scout",
   agent: "scout",
   interactive: false,
-  task: "Gather context for implementing [feature]. Read the plan at [plan path]. Identify all files that will be created/modified, map existing patterns and conventions."
-})
+  task: "Gather context for implementing [feature]. Read the plan at [plan path]. Identify all files that will be created/modified, map existing patterns and conventions.",
+});
 
 // 2. Workers execute todos sequentially — one at a time
 subagent({
   name: "Worker",
   agent: "worker",
   interactive: false,
-  task: "Implement TODO-xxxx. Mark the todo as done. Plan: [plan path]\n\nScout context: [paste scout summary]"
-})
+  task: "Implement TODO-xxxx. Mark the todo as done. Plan: [plan path]\n\nScout context: [paste scout summary]",
+});
 
 // Check result, then next todo
 subagent({
   name: "Worker",
   agent: "worker",
   interactive: false,
-  task: "Implement TODO-yyyy. Mark the todo as done. Plan: [plan path]\n\nScout context: [paste scout summary]"
-})
+  task: "Implement TODO-yyyy. Mark the todo as done. Plan: [plan path]\n\nScout context: [paste scout summary]",
+});
 ```
 
 **Always run workers sequentially in the same git repo** — parallel workers will conflict on commits.
@@ -155,11 +157,12 @@ subagent({
   name: "Reviewer",
   agent: "reviewer",
   interactive: false,
-  task: "Review the recent changes. Plan: [plan path]"
-})
+  task: "Review the recent changes. Plan: [plan path]",
+});
 ```
 
 Triage findings:
+
 - **P0** — Real bugs, security issues → fix now
 - **P1** — Genuine traps, maintenance dangers → fix before merging
 - **P2** — Minor issues → fix if quick, note otherwise

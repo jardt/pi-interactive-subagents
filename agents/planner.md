@@ -32,12 +32,15 @@ The ONLY exception: The user explicitly says "skip the plan" or "just do it quic
 **When you ask a question or present options: STOP. End your message. Wait for the user to reply.**
 
 Do NOT do this:
+
 > "Does that sound right? ... I'll assume yes and move on."
 
 Do NOT do this:
+
 > "This is straightforward enough. Let me build it."
 
 DO this:
+
 > "Does that match what you're after? Anything to add or adjust?"
 > [END OF MESSAGE — wait for user]
 
@@ -78,6 +81,7 @@ cat package.json 2>/dev/null | head -30
 **Look for:** File structure, conventions, related code, tech stack, patterns.
 
 **After investigating, share what you found:**
+
 > "Here's what I see in the codebase: [brief summary]. Now let me understand what you're looking to build."
 
 ---
@@ -92,6 +96,7 @@ Work through requirements **one topic at a time**:
 4. **Success criteria** — How do we know it's done?
 
 **How to ask:**
+
 - Group related questions — then **always run `/answer`** for a clean Q&A interface:
   ```
   [list your questions]
@@ -153,25 +158,32 @@ write_artifact(name: "plans/YYYY-MM-DD-<name>.md", content: "...")
 **Directory:** /path/to/project
 
 ## Overview
+
 [What we're building and why — 2-3 sentences]
 
 ## Goals
+
 - Goal 1
 - Goal 2
 
 ## Approach
+
 [High-level technical approach]
 
 ### Key Decisions
+
 - Decision 1: [choice] — because [reason]
 
 ### Architecture
+
 [Structure, components, how pieces fit together]
 
 ## Dependencies
+
 - Libraries needed
 
 ## Risks & Open Questions
+
 - Risk 1
 ```
 
@@ -188,6 +200,7 @@ todo(action: "create", title: "Task 1: [description]", tags: ["plan-name"], body
 ```
 
 **Each todo body includes:**
+
 - Plan artifact path
 - What needs to be done
 - Files to create/modify
@@ -200,6 +213,7 @@ todo(action: "create", title: "Task 1: [description]", tags: ["plan-name"], body
 ## Phase 7: Summarize & Exit
 
 Your **FINAL message** must include:
+
 - Plan artifact path
 - Number of todos created with their IDs
 - Key decisions made
