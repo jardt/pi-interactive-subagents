@@ -23,6 +23,7 @@ import {
   shellEscape,
   renameCurrentTab,
   renameWorkspace,
+  normalizeTmuxSpawnTarget,
 } from "./cmux.ts";
 import { getNewEntries, findLastAssistantMessage } from "./session.ts";
 
@@ -57,6 +58,15 @@ const SubagentParams = Type.Object({
         "Fork the current session — sub-agent gets full conversation context. Use for iterate/bugfix patterns.",
     }),
   ),
+  tmuxTarget: Type.Optional(
+    Type.Union([
+      Type.Literal("pane"),
+      Type.Literal("window"),
+    ], {
+      description:
+        "tmux-only: choose whether to launch in a new pane or a new window. Overrides PI_SUBAGENT_TMUX_TARGET for this subagent.",
+    }),
+  ),
 });
 
 interface AgentDefaults {
@@ -68,6 +78,7 @@ interface AgentDefaults {
   spawning?: boolean;
   autoExit?: boolean;
   systemPromptMode?: "append" | "replace";
+  tmuxTarget?: "pane" | "window";
   cwd?: string;
   body?: string;
 }
@@ -165,6 +176,7 @@ function loadAgentDefaults(agentName: string): AgentDefaults | null {
       denyTools: get("deny-tools"),
       spawning: spawningRaw != null ? spawningRaw === "true" : undefined,
       autoExit: autoExitRaw != null ? autoExitRaw === "true" : undefined,
+      tmuxTarget: normalizeTmuxSpawnTarget(get("tmux-target") ?? get("tmuxTarget")) ?? undefined,
       cwd: get("cwd"),
       body: body || undefined,
     };
@@ -417,6 +429,7 @@ async function launchSubagent(
   const effectiveTools = params.tools ?? agentDefs?.tools;
   const effectiveSkills = params.skills ?? agentDefs?.skills;
   const effectiveThinking = agentDefs?.thinking;
+  const effectiveTmuxTarget = params.tmuxTarget ?? agentDefs?.tmuxTarget;
 
   const sessionFile = ctx.sessionManager.getSessionFile();
   if (!sessionFile) throw new Error("No session file");
@@ -442,7 +455,7 @@ async function launchSubagent(
   // Use pre-created surface (parallel mode) or create a new one.
   // For new surfaces, pause briefly so the shell is ready before sending the command.
   const surfacePreCreated = !!options?.surface;
-  const surface = options?.surface ?? createSurface(params.name);
+  const surface = options?.surface ?? createSurface(params.name, { tmuxTarget: effectiveTmuxTarget });
   if (!surfacePreCreated) {
     await new Promise<void>((resolve) => setTimeout(resolve, 500));
   }
@@ -766,13 +779,13 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       name: "subagent",
       label: "Subagent",
       description:
-        "Spawn a sub-agent in a dedicated terminal multiplexer pane. " +
+        "Spawn a sub-agent in a dedicated terminal multiplexer pane or window. " +
         "IMPORTANT: This tool returns IMMEDIATELY — the sub-agent runs asynchronously in the background. " +
         "You will NOT have results when this tool returns. Results are delivered later via a steer message. " +
         "Do NOT fabricate, assume, or summarize results after calling this tool. " +
         "Either wait for the steer message or move on to other work.",
       promptSnippet:
-        "Spawn a sub-agent in a dedicated terminal multiplexer pane. " +
+        "Spawn a sub-agent in a dedicated terminal multiplexer pane or window. " +
         "IMPORTANT: This tool returns IMMEDIATELY — the sub-agent runs asynchronously in the background. " +
         "You will NOT have results when this tool returns. Results are delivered later via a steer message. " +
         "Do NOT fabricate, assume, or summarize results after calling this tool. " +
@@ -780,6 +793,13 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       parameters: SubagentParams,
 
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+        if (params.tmuxTarget && !normalizeTmuxSpawnTarget(params.tmuxTarget)) {
+          return {
+            content: [{ type: "text", text: `Invalid tmuxTarget: ${params.tmuxTarget}` }],
+            details: { error: "invalid tmuxTarget" },
+          };
+        }
+
         // Prevent self-spawning (e.g. planner spawning another planner)
         const currentAgent = process.env.PI_SUBAGENT_AGENT;
         if (params.agent && currentAgent && params.agent === currentAgent) {
@@ -1087,12 +1107,12 @@ export default function subagentsExtension(pi: ExtensionAPI) {
       name: "subagent_resume",
       label: "Resume Subagent",
       description:
-        "Resume a previous sub-agent session in a new multiplexer pane. " +
+        "Resume a previous sub-agent session in a new multiplexer pane or window. " +
         "IMPORTANT: Returns IMMEDIATELY — the resumed session runs asynchronously in the background. " +
         "Results are delivered later via a steer message. Do NOT fabricate or assume results. " +
         "Use when a sub-agent was cancelled or needs follow-up work.",
       promptSnippet:
-        "Resume a previous sub-agent session in a new multiplexer pane. " +
+        "Resume a previous sub-agent session in a new multiplexer pane or window. " +
         "IMPORTANT: Returns IMMEDIATELY — the resumed session runs asynchronously in the background. " +
         "Results are delivered later via a steer message. Do NOT fabricate or assume results. " +
         "Use when a sub-agent was cancelled or needs follow-up work.",
@@ -1104,6 +1124,12 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         message: Type.Optional(
           Type.String({
             description: "Optional message to send after resuming (e.g. follow-up instructions)",
+          }),
+        ),
+        tmuxTarget: Type.Optional(
+          Type.Union([Type.Literal("pane"), Type.Literal("window")], {
+            description:
+              "tmux-only: choose whether to resume in a new pane or a new window. Overrides PI_SUBAGENT_TMUX_TARGET for this resumed session.",
           }),
         ),
       }),
@@ -1139,6 +1165,13 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         const name = params.name ?? "Resume";
         const startTime = Date.now();
 
+        if (params.tmuxTarget && !normalizeTmuxSpawnTarget(params.tmuxTarget)) {
+          return {
+            content: [{ type: "text", text: `Invalid tmuxTarget: ${params.tmuxTarget}` }],
+            details: { error: "invalid tmuxTarget" },
+          };
+        }
+
         if (!isMuxAvailable()) {
           return muxUnavailableResult("subagents");
         }
@@ -1155,7 +1188,7 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         // Record entry count before resuming so we can extract new messages
         const entryCountBefore = getNewEntries(params.sessionPath, 0).length;
 
-        const surface = createSurface(name);
+        const surface = createSurface(name, { tmuxTarget: params.tmuxTarget });
         await new Promise<void>((resolve) => setTimeout(resolve, 500));
 
         // Build pi resume command

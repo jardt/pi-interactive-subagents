@@ -6,7 +6,7 @@ https://github.com/user-attachments/assets/30adb156-cfb4-4c47-84ca-dd4aa80cba9f
 
 ## How It Works
 
-Call `subagent()` and it **returns immediately**. The sub-agent runs in its own terminal pane. A live widget above the input shows all running agents with elapsed time and progress. When a sub-agent finishes, its result is **steered back** into the main session as an async notification — triggering a new turn so the agent can process it.
+Call `subagent()` and it **returns immediately**. The sub-agent runs in its own terminal pane or window (depending on multiplexer backend and configuration). A live widget above the input shows all running agents with elapsed time and progress. When a sub-agent finishes, its result is **steered back** into the main session as an async notification — triggering a new turn so the agent can process it.
 
 ```
 ╭─ Subagents ──────────────────────── 2 running ─╮
@@ -50,6 +50,31 @@ zellij --session pi   # then run: pi
 
 Optional: set `PI_SUBAGENT_MUX=cmux|tmux|zellij|wezterm` to force a specific backend.
 
+For tmux only, you can also choose whether subagents open in a new pane or a new window.
+
+Environment variable:
+
+```bash
+export PI_SUBAGENT_TMUX_TARGET=pane   # default fallback
+# or
+export PI_SUBAGENT_TMUX_TARGET=window
+```
+
+Project/global config file:
+
+```json
+// .pi/subagents.json
+{
+  "tmuxTarget": "window"
+}
+```
+
+Pi will look for:
+- project-local: `.pi/subagents.json`
+- global: `~/.pi/agent/subagents.json`
+
+If no config is present, subagents still work and default to `pane`.
+
 ## What's Included
 
 ### Extensions
@@ -58,10 +83,10 @@ Optional: set `PI_SUBAGENT_MUX=cmux|tmux|zellij|wezterm` to force a specific bac
 
 | Tool              | Description                                                                     |
 | ----------------- | ------------------------------------------------------------------------------- |
-| `subagent`        | Spawn a sub-agent in a dedicated multiplexer pane (async — returns immediately) |
+| `subagent`        | Spawn a sub-agent in a dedicated multiplexer pane/window (async — returns immediately) |
 | `subagents_list`  | List available agent definitions                                                |
 | `set_tab_title`   | Update tab/window title to show progress                                        |
-| `subagent_resume` | Resume a previous sub-agent session (async)                                     |
+| `subagent_resume` | Resume a previous sub-agent session (async; supports tmux pane/window target)   |
 
 | Command                    | Description                          |
 | -------------------------- | ------------------------------------ |
@@ -133,6 +158,9 @@ subagent({
 
 // Custom working directory
 subagent({ name: "Designer", agent: "game-designer", cwd: "agents/game-designer", task: "..." });
+
+// tmux only: force a new window for this one subagent
+subagent({ name: "Reviewer", agent: "reviewer", task: "Review the patch", tmuxTarget: "window" });
 ```
 
 ### Parameters
@@ -148,6 +176,7 @@ subagent({ name: "Designer", agent: "game-designer", cwd: "agents/game-designer"
 | `skills`       | string  | —        | Comma-separated skill names                                             |
 | `tools`        | string  | —        | Comma-separated tool names                                              |
 | `cwd`          | string  | —        | Working directory for the sub-agent (see [Role Folders](#role-folders)) |
+| `tmuxTarget`   | string  | —        | tmux-only override: `pane` or `window`                                  |
 
 ---
 

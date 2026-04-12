@@ -1,14 +1,16 @@
 import { execSync, execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
 const execFileAsync = promisify(execFile);
 
 export type MuxBackend = "cmux" | "tmux" | "zellij" | "wezterm";
+export type TmuxSpawnTarget = "pane" | "window";
 
 const commandAvailability = new Map<string, boolean>();
+const subagentConfigCache = new Map<string, TmuxSpawnTarget | null>();
 
 function hasCommand(command: string): boolean {
   if (commandAvailability.has(command)) {
@@ -31,6 +33,50 @@ function muxPreference(): MuxBackend | null {
   const pref = (process.env.PI_SUBAGENT_MUX ?? "").trim().toLowerCase();
   if (pref === "cmux" || pref === "tmux" || pref === "zellij" || pref === "wezterm") return pref;
   return null;
+}
+
+export function normalizeTmuxSpawnTarget(value?: string | null): TmuxSpawnTarget | null {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "pane" || normalized === "window") return normalized;
+  return null;
+}
+
+function readTmuxSpawnTargetFromConfig(): TmuxSpawnTarget | null {
+  const configDir = process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent");
+  const paths = [
+    join(process.cwd(), ".pi", "subagents.json"),
+    join(configDir, "subagents.json"),
+  ];
+
+  for (const path of paths) {
+    if (subagentConfigCache.has(path)) {
+      const cached = subagentConfigCache.get(path);
+      if (cached) return cached;
+      continue;
+    }
+
+    let target: TmuxSpawnTarget | null = null;
+    try {
+      if (existsSync(path)) {
+        const raw = JSON.parse(readFileSync(path, "utf8")) as { tmuxTarget?: string };
+        target = normalizeTmuxSpawnTarget(raw.tmuxTarget);
+      }
+    } catch {
+      target = null;
+    }
+
+    subagentConfigCache.set(path, target);
+    if (target) return target;
+  }
+
+  return null;
+}
+
+export function getTmuxSpawnTarget(preferred?: string | null): TmuxSpawnTarget {
+  return normalizeTmuxSpawnTarget(preferred)
+    ?? normalizeTmuxSpawnTarget(process.env.PI_SUBAGENT_TMUX_TARGET)
+    ?? readTmuxSpawnTargetFromConfig()
+    ?? "pane";
 }
 
 function isCmuxRuntimeAvailable(): boolean {
@@ -185,8 +231,15 @@ let cmuxSubagentPane: string | null = null;
  *
  * Returns an identifier (`surface:42` in cmux, `%12` in tmux, `pane:7` in zellij, `42` in wezterm).
  */
-export function createSurface(name: string): string {
+export function createSurface(
+  name: string,
+  options?: { tmuxTarget?: TmuxSpawnTarget },
+): string {
   const backend = getMuxBackend();
+
+  if (backend === "tmux" && getTmuxSpawnTarget(options?.tmuxTarget) === "window") {
+    return createTmuxWindow(name);
+  }
 
   if (backend === "cmux" && cmuxSubagentPane) {
     // Verify the pane still exists before adding a tab to it
@@ -235,6 +288,43 @@ function createSurfaceInPane(name: string, pane: string): string {
     encoding: "utf8",
   });
   return surface;
+}
+
+function createTmuxWindow(name: string, fromSurface?: string): string {
+  const args = ["new-window", "-P", "-F", "#{pane_id}", "-n", name, "-c", process.cwd()];
+  if (fromSurface) {
+    const sessionId = execFileSync(
+      "tmux",
+      ["display-message", "-p", "-t", fromSurface, "#{session_id}"],
+      { encoding: "utf8" },
+    ).trim();
+    if (sessionId) {
+      args.push("-t", sessionId);
+    }
+  }
+
+  const pane = execFileSync("tmux", args, { encoding: "utf8" }).trim();
+  if (!pane.startsWith("%")) {
+    throw new Error(`Unexpected tmux new-window output: ${pane}`);
+  }
+
+  try {
+    const windowId = execFileSync("tmux", ["display-message", "-p", "-t", pane, "#{window_id}"], {
+      encoding: "utf8",
+    }).trim();
+    if (windowId) {
+      execFileSync("tmux", ["rename-window", "-t", windowId, name], { encoding: "utf8" });
+    }
+  } catch {
+    // Optional.
+  }
+
+  try {
+    execFileSync("tmux", ["select-pane", "-t", pane, "-T", name], { encoding: "utf8" });
+  } catch {
+    // Optional.
+  }
+  return pane;
 }
 
 /**

@@ -16,7 +16,13 @@ import {
   mergeNewEntries,
 } from "../pi-extension/subagents/session.ts";
 
-import { shellEscape, isCmuxAvailable, isWezTermAvailable } from "../pi-extension/subagents/cmux.ts";
+import {
+  shellEscape,
+  isCmuxAvailable,
+  isWezTermAvailable,
+  normalizeTmuxSpawnTarget,
+  getTmuxSpawnTarget,
+} from "../pi-extension/subagents/cmux.ts";
 import {
   shouldMarkUserTookOver,
   shouldAutoExitOnAgentEnd,
@@ -406,6 +412,46 @@ describe("cmux.ts", () => {
     it("returns boolean based on WEZTERM_UNIX_SOCKET", () => {
       const result = isWezTermAvailable();
       assert.equal(typeof result, "boolean");
+    });
+  });
+
+  describe("normalizeTmuxSpawnTarget", () => {
+    it("accepts pane and window", () => {
+      assert.equal(normalizeTmuxSpawnTarget("pane"), "pane");
+      assert.equal(normalizeTmuxSpawnTarget("window"), "window");
+    });
+
+    it("normalizes case and whitespace", () => {
+      assert.equal(normalizeTmuxSpawnTarget(" Window "), "window");
+    });
+
+    it("rejects invalid values", () => {
+      assert.equal(normalizeTmuxSpawnTarget("tab"), null);
+      assert.equal(normalizeTmuxSpawnTarget(undefined), null);
+    });
+  });
+
+  describe("getTmuxSpawnTarget", () => {
+    const original = process.env.PI_SUBAGENT_TMUX_TARGET;
+
+    after(() => {
+      if (original == null) delete process.env.PI_SUBAGENT_TMUX_TARGET;
+      else process.env.PI_SUBAGENT_TMUX_TARGET = original;
+    });
+
+    it("defaults to pane", () => {
+      delete process.env.PI_SUBAGENT_TMUX_TARGET;
+      assert.equal(getTmuxSpawnTarget(), "pane");
+    });
+
+    it("uses env when valid", () => {
+      process.env.PI_SUBAGENT_TMUX_TARGET = "window";
+      assert.equal(getTmuxSpawnTarget(), "window");
+    });
+
+    it("prefers explicit option over env", () => {
+      process.env.PI_SUBAGENT_TMUX_TARGET = "pane";
+      assert.equal(getTmuxSpawnTarget("window"), "window");
     });
   });
 });
