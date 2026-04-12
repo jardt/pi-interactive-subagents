@@ -6,7 +6,7 @@ https://github.com/user-attachments/assets/30adb156-cfb4-4c47-84ca-dd4aa80cba9f
 
 ## How It Works
 
-Call `subagent()` and it **returns immediately**. The sub-agent runs in its own terminal pane. A live widget above the input shows all running agents with their current state — `active`, `quiet`, `stalled`, or `starting`. When a sub-agent finishes, its result is **steered back** into the main session as an async notification — triggering a new turn so the agent can process it.
+Call `subagent()` and it **returns immediately**. The sub-agent runs in its own terminal pane or window (depending on multiplexer backend and configuration). A live widget above the input shows all running agents with their current state — `active`, `quiet`, `stalled`, or `starting` — plus elapsed time and progress. When a sub-agent finishes, its result is **steered back** into the main session as an async notification — triggering a new turn so the agent can process it.
 
 ```
 ╭─ Subagents ────────────────────────── 2 running ─╮
@@ -56,6 +56,31 @@ If your shell startup is slow and subagent commands sometimes get dropped before
 export PI_SUBAGENT_SHELL_READY_DELAY_MS=2500
 ```
 
+For tmux only, you can also choose whether subagents open in a new pane or a new window.
+
+Environment variable:
+
+```bash
+export PI_SUBAGENT_TMUX_TARGET=pane   # default fallback
+# or
+export PI_SUBAGENT_TMUX_TARGET=window
+```
+
+Project/global config file:
+
+```json
+// .pi/subagents.json
+{
+  "tmuxTarget": "window"
+}
+```
+
+Pi will look for:
+- project-local: `.pi/subagents.json`
+- global: `~/.pi/agent/subagents.json`
+
+If no config is present, subagents still work and default to `pane`.
+
 ## What's Included
 
 ### Extensions
@@ -64,10 +89,10 @@ export PI_SUBAGENT_SHELL_READY_DELAY_MS=2500
 
 | Tool                 | Description                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------------- |
-| `subagent`           | Spawn a sub-agent in a dedicated multiplexer pane (async — returns immediately)             |
+| `subagent`           | Spawn a sub-agent in a dedicated multiplexer pane/window (async — returns immediately)      |
 | `subagent_interrupt` | Interrupt a running Pi-backed subagent's current turn                                       |
 | `subagents_list`     | List available agent definitions                                                            |
-| `subagent_resume`    | Resume a previous sub-agent session (async)                                                 |
+| `subagent_resume`    | Resume a previous sub-agent session (async; supports tmux pane/window target)               |
 
 | Command                    | Description                          |
 | -------------------------- | ------------------------------------ |
@@ -170,13 +195,16 @@ subagent({ name: "Designer", agent: "game-designer", cwd: "agents/game-designer"
 
 // Override the status classification window for this run
 subagent({ name: "Scout", agent: "scout", statusCadenceSeconds: 30, task: "..." });
+
+// tmux only: force a new window for this one subagent
+subagent({ name: "Reviewer", agent: "reviewer", task: "Review the patch", tmuxTarget: "window" });
 ```
 
 ### Parameters
 
 | Parameter              | Type    | Default        | Description                                                                                       |
 | ---------------------- | ------- | -------------- | ------------------------------------------------------------------------------------------------- |
-| `name`                 | string  | required       | Display name (shown in widget and pane title)                                                     |
+| `name`                 | string  | required       | Display name (shown in widget and pane/window title)                                              |
 | `task`                 | string  | required       | Task prompt for the sub-agent                                                                     |
 | `agent`                | string  | —              | Load defaults from agent definition                                                               |
 | `fork`                 | boolean | `false`        | Force the full-context fork mode for this spawn, overriding any agent `session-mode` frontmatter  |
@@ -186,6 +214,7 @@ subagent({ name: "Scout", agent: "scout", statusCadenceSeconds: 30, task: "..." 
 | `tools`                | string  | —              | Comma-separated tool names                                                                        |
 | `cwd`                  | string  | —              | Working directory for the sub-agent (see [Role Folders](#role-folders))                           |
 | `statusCadenceSeconds` | number  | config default | Idle-time window for status classification (has a minimum floor)                                  |
+| `tmuxTarget`           | string  | —              | tmux-only override: `pane` or `window`                                                            |
 
 ---
 
@@ -199,7 +228,7 @@ subagent_interrupt({ id: "abcd1234" });
 subagent_interrupt({ name: "Scout" });
 ```
 
-This sends Escape to the child pane, cancelling the in-progress model turn. The subagent session stays alive — the pane, session file, and background polling all remain intact. After the interrupt, the widget shows the child as `quiet`. If the child makes new progress later, it returns to `active`; completion, failure, and `caller_ping` still flow through normally.
+This sends Escape to the child pane/window, cancelling the in-progress model turn. The subagent session stays alive — the surface, session file, and background polling all remain intact. After the interrupt, the widget shows the child as `quiet`. If the child makes new progress later, it returns to `active`; completion, failure, and `caller_ping` still flow through normally.
 
 This is a turn-level interrupt, not a method for forcibly terminating a subagent session.
 
