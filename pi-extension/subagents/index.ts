@@ -2,7 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-age
 import { keyHint } from "@mariozechner/pi-coding-agent";
 import { Type, type Static } from "@sinclair/typebox";
 import { Box, Text, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
-import { dirname, join } from "node:path";
+import { dirname, join, basename } from "node:path";
 import {
   readdirSync,
   statSync,
@@ -80,6 +80,7 @@ interface AgentDefaults {
   systemPromptMode?: "append" | "replace";
   tmuxTarget?: "pane" | "window";
   cwd?: string;
+  env?: Record<string, string>;
   body?: string;
 }
 
@@ -145,6 +146,87 @@ function getDefaultSessionDirFor(cwd: string, agentDir: string): string {
   return sessionDir;
 }
 
+function isValidEnvName(name: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+}
+
+function loadAgentEnvSidecar(agentPath: string): Record<string, string> | undefined {
+  const envPath = join(dirname(agentPath), `${basename(agentPath, ".md")}.env.json`);
+  if (!existsSync(envPath)) return undefined;
+
+  const parsed = JSON.parse(readFileSync(envPath, "utf8")) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Invalid agent env sidecar at ${envPath}: expected a JSON object.`);
+  }
+
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (!isValidEnvName(key)) {
+      throw new Error(`Invalid env var name in ${envPath}: ${key}`);
+    }
+    if (typeof value !== "string") {
+      throw new Error(`Invalid env var value for ${key} in ${envPath}: expected string.`);
+    }
+    env[key] = value;
+  }
+
+  return Object.keys(env).length > 0 ? env : undefined;
+}
+
+function getSubagentSessionMetaPath(sessionPath: string): string {
+  return `${sessionPath}.meta.json`;
+}
+
+function writeSubagentSessionMeta(
+  sessionPath: string,
+  meta: { agent?: string; env?: Record<string, string> },
+): void {
+  const metaPath = getSubagentSessionMetaPath(sessionPath);
+  const content = JSON.stringify(meta, null, 2) + "\n";
+  writeFileSync(metaPath, content, "utf8");
+}
+
+function readSubagentSessionMeta(
+  sessionPath: string,
+): { agent?: string; env?: Record<string, string> } | null {
+  const metaPath = getSubagentSessionMetaPath(sessionPath);
+  if (!existsSync(metaPath)) return null;
+
+  const parsed = JSON.parse(readFileSync(metaPath, "utf8")) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Invalid subagent session metadata at ${metaPath}: expected a JSON object.`);
+  }
+
+  const meta = parsed as { agent?: unknown; env?: unknown };
+  const result: { agent?: string; env?: Record<string, string> } = {};
+
+  if (meta.agent != null) {
+    if (typeof meta.agent !== "string") {
+      throw new Error(`Invalid agent in ${metaPath}: expected string.`);
+    }
+    result.agent = meta.agent;
+  }
+
+  if (meta.env != null) {
+    if (typeof meta.env !== "object" || !meta.env || Array.isArray(meta.env)) {
+      throw new Error(`Invalid env in ${metaPath}: expected an object.`);
+    }
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(meta.env as Record<string, unknown>)) {
+      if (!isValidEnvName(key)) {
+        throw new Error(`Invalid env var name in ${metaPath}: ${key}`);
+      }
+      if (typeof value !== "string") {
+        throw new Error(`Invalid env var value for ${key} in ${metaPath}: expected string.`);
+      }
+      env[key] = value;
+    }
+    result.env = env;
+  }
+
+  return result;
+}
+
 function loadAgentDefaults(agentName: string): AgentDefaults | null {
   const configDir = getAgentConfigDir();
   const paths = [
@@ -178,6 +260,7 @@ function loadAgentDefaults(agentName: string): AgentDefaults | null {
       autoExit: autoExitRaw != null ? autoExitRaw === "true" : undefined,
       tmuxTarget: normalizeTmuxSpawnTarget(get("tmux-target") ?? get("tmuxTarget")) ?? undefined,
       cwd: get("cwd"),
+      env: loadAgentEnvSidecar(p),
       body: body || undefined,
     };
   }
@@ -400,6 +483,12 @@ function updateWidget() {
 export const __test__ = {
   borderLine,
   renderSubagentWidgetLines,
+  loadAgentDefaults,
+  loadAgentEnvSidecar,
+  isValidEnvName,
+  getSubagentSessionMetaPath,
+  writeSubagentSessionMeta,
+  readSubagentSessionMeta,
 };
 
 function startWidgetRefresh() {
@@ -435,6 +524,7 @@ async function launchSubagent(
   if (!sessionFile) throw new Error("No session file");
   const sessionId = ctx.sessionManager.getSessionId();
   const artifactDir = getArtifactDir(ctx.sessionManager.getSessionDir(), sessionId);
+  const agentEnv = agentDefs?.env ?? {};
 
   const { effectiveCwd, localAgentDir, effectiveAgentDir } = resolveSubagentPaths(params, agentDefs);
   const targetCwdForSession = effectiveCwd ?? ctx.cwd;
@@ -597,6 +687,9 @@ async function launchSubagent(
   if (denySet.size > 0) {
     envParts.push(`PI_DENY_TOOLS=${shellEscape([...denySet].join(","))}`);
   }
+  for (const [key, value] of Object.entries(agentEnv)) {
+    envParts.push(`${key}=${shellEscape(value)}`);
+  }
   envParts.push(`PI_SUBAGENT_NAME=${shellEscape(params.name)}`);
   if (params.agent) {
     envParts.push(`PI_SUBAGENT_AGENT=${shellEscape(params.agent)}`);
@@ -651,6 +744,11 @@ async function launchSubagent(
       `# Session: ${subagentSessionFile}`,
       `# Surface: ${surface}`,
     ].join("\n"),
+  });
+
+  writeSubagentSessionMeta(subagentSessionFile, {
+    agent: params.agent,
+    env: Object.keys(agentEnv).length > 0 ? agentEnv : undefined,
   });
 
   const running: RunningSubagent = {
@@ -1226,6 +1324,10 @@ export default function subagentsExtension(pi: ExtensionAPI) {
         const resumeEnvParts: string[] = [];
         if (process.env.PI_CODING_AGENT_DIR) {
           resumeEnvParts.push(`PI_CODING_AGENT_DIR=${shellEscape(process.env.PI_CODING_AGENT_DIR)}`);
+        }
+        const sessionMeta = readSubagentSessionMeta(params.sessionPath);
+        for (const [key, value] of Object.entries(sessionMeta?.env ?? {})) {
+          resumeEnvParts.push(`${key}=${shellEscape(value)}`);
         }
         const resumeEnvPrefix = resumeEnvParts.length > 0 ? resumeEnvParts.join(" ") + " " : "";
 

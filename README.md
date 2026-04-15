@@ -279,6 +279,28 @@ You are a specialized agent that does X...
 | `auto-exit`   | boolean | Auto-shutdown when the agent finishes its turn — no `subagent_done` call needed. If the user sends any input, auto-exit is permanently disabled and the user takes over the session. Recommended for autonomous agents (scout, worker); not for interactive ones (planner). |
 | `cwd`         | string  | Default working directory (absolute or relative to project root)                                                                                                                                                                                                            |
 
+### Optional agent env sidecar
+
+If an agent should always launch with specific environment variables, add an optional sibling JSON file next to the agent definition:
+
+- `agents/scout.md`
+- `agents/scout.env.json`
+
+Example:
+
+```json
+{
+  "SCOUT_MODE": "focused",
+  "X": "Y"
+}
+```
+
+Notes:
+- The sidecar is completely optional. If it is missing, subagents behave exactly as before.
+- Keys must be valid environment variable names.
+- Values must be strings.
+- These variables are applied when the subagent is spawned, and are also reused by `subagent_resume` via session metadata.
+
 ---
 
 ### `auto-exit`
