@@ -309,6 +309,28 @@ You are a specialized agent that does X...
 | `cwd`         | string  | Default working directory (absolute or relative to project root)                                                                                                                                                                                                            |
 | `disable-model-invocation` | boolean | Hide this agent from discovery surfaces like `subagents_list`. The agent still remains directly invokable by explicit name via `subagent({ agent: "name", ... })`. |
 
+### Optional agent env sidecar
+
+If an agent should always launch with specific environment variables, add an optional sibling JSON file next to the agent definition:
+
+- `agents/scout.md`
+- `agents/scout.env.json`
+
+Example:
+
+```json
+{
+  "SCOUT_MODE": "focused",
+  "X": "Y"
+}
+```
+
+Notes:
+- The sidecar is completely optional. If it is missing, subagents behave exactly as before.
+- Keys must be valid environment variable names.
+- Values must be strings.
+- These variables are applied when the subagent is spawned, and are also reused by `subagent_resume` via session metadata.
+
 ---
 
 Discovery still resolves precedence before visibility filtering. If a project-local hidden agent has the same name as a visible global or bundled agent, the hidden project agent wins and the lower-precedence agent does not appear in `subagents_list`.
